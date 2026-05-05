@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import PermissionButton from "@/components/PermissionButton.vue";
 import { UI_PERMISSIONS } from "@/constants/permissions";
+import {
+    getSquadMapsThumbnailCandidates,
+    getSquadMapsThumbnailUrlForCandidate,
+} from "@/utils/squadMaps";
 import { Button } from "~/components/ui/button";
 import {
     Card,
@@ -61,6 +65,7 @@ const playerCount = ref<{ current: number; max: number }>({
     max: 64,
 });
 const activeTab = ref("overview");
+const mapThumbnailCandidateIndex = ref(0);
 
 const rconServerInfo = ref<any>(null);
 const rconServerInfoLoading = ref(false);
@@ -385,6 +390,35 @@ const formattedPlayerCount = computed(() => {
         playerReserveCount !== 0 ? `(+${playerReserveCount})` : ""
     }`;
 });
+
+const mapThumbnailCandidates = computed(() =>
+    getSquadMapsThumbnailCandidates(serverInfo.value?.metrics?.current?.layer),
+);
+
+const mapThumbnailUrl = computed(() => {
+    const candidate =
+        mapThumbnailCandidates.value[mapThumbnailCandidateIndex.value];
+    return candidate ? getSquadMapsThumbnailUrlForCandidate(candidate) : "";
+});
+
+watch(
+    () => serverInfo.value?.metrics?.current?.layer,
+    () => {
+        mapThumbnailCandidateIndex.value = 0;
+    },
+);
+
+function handleMapThumbnailError() {
+    if (
+        mapThumbnailCandidateIndex.value <
+        mapThumbnailCandidates.value.length - 1
+    ) {
+        mapThumbnailCandidateIndex.value += 1;
+        return;
+    }
+
+    mapThumbnailCandidateIndex.value = mapThumbnailCandidates.value.length;
+}
 
 // Fetch available layers
 async function fetchAvailableLayers() {
@@ -752,8 +786,10 @@ refresh();
                                     Map Preview
                                 </div>
                                 <img
-                                    :src="`https://raw.githubusercontent.com/mahtoid/SquadMaps/refs/heads/master/img/maps/thumbnails/${serverInfo.metrics?.current?.layer}.jpg`"
+                                    v-if="mapThumbnailUrl"
+                                    :src="mapThumbnailUrl"
                                     class="absolute inset-0 w-full h-full object-cover"
+                                    @error="handleMapThumbnailError"
                                 />
                             </div>
                             <h3 class="text-lg font-medium">
