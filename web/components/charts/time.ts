@@ -65,7 +65,15 @@ const getSpanMs = (timestamps: ChartTimeValue[]) => {
   return sortedTimes[sortedTimes.length - 1] - sortedTimes[0];
 };
 
-export const toChartTime = (timestamp: string) => toDate(timestamp).toISOString();
+export const toChartTime = (timestamp: string) => {
+  const date = toDate(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  return date.getTime();
+};
 
 export const formatChartAxisTime = (
   value: ChartTimeValue,
@@ -129,7 +137,7 @@ export const getTimeTickCount = (timestamps: ChartTimeValue[]) => {
 };
 
 export const buildTimeMeta = (timestamps: ChartTimeValue[]) => ({
-  type: "timeCat" as const,
+  type: "time" as const,
   tickCount: getTimeTickCount(timestamps),
 });
 
