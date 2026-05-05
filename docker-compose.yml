@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
 
   server:
-    image: insidiousfiddler/squad-aegis:latest
+    image: ghcr.io/incompetentlegion/squad-aegis:latest
     depends_on:
       - database
       - clickhouse
