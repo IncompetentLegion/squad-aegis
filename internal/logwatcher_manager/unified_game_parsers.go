@@ -119,10 +119,10 @@ func GetUnifiedGameEventParsers() []LogParser {
 		},
 		// Match when bringing world (new game/map change)
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogWorld: Bringing World \/([A-z0-9]+)\/(?:Maps\/)?([A-z0-9-]+)\/(?:.+\/)?([A-z0-9-]+)(?:\.[A-z0-9-]+)`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogWorld: Bringing World \/([A-Za-z0-9_-]+)\/(?:Maps\/)?([A-Za-z0-9_-]+)\/(?:.+\/)?([A-Za-z0-9_-]+)(?:\.[A-Za-z0-9_-]+)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
-				// Skip transition map
-				if args[5] == "TransitionMap" {
+				// Skip transition and admin-tool bootstrap maps.
+				if args[5] == "TransitionMap" || args[5] == "VoiceConnect_Init" {
 					return
 				}
 
