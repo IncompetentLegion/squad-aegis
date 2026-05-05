@@ -609,7 +609,7 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQPlayerController::)?OnPossess\(\): PC=(.+) \(Online IDs:([^)]*)\) Pawn=([A-Za-z0-9_-]+)_C`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQPlayerController::)?OnPossess\(\): PC=(.+) \(Online IDs:([^)]*)\) (?:Entered Vehicle )?Pawn=([A-Za-z0-9_-]+)_C`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				onlineIDs := utils.ParseOnlineIDs(args[4])
 				eventManagerData := &event_manager.LogPlayerPossessData{

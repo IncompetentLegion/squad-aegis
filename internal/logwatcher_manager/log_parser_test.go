@@ -330,6 +330,40 @@ func TestProcessLogForEventsParsesSuperModPossessClassname(t *testing.T) {
 	}
 }
 
+func TestProcessLogForEventsParsesSuperModVehiclePossessClassname(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	em := event_manager.NewEventManager(ctx, 10)
+	defer em.Shutdown()
+
+	serverID := uuid.New()
+	store := newTestEventStore(serverID)
+	subscriber := em.Subscribe(event_manager.EventFilter{
+		Types: []event_manager.EventType{event_manager.EventTypeLogPlayerPossess},
+	}, nil, 10)
+	defer em.Unsubscribe(subscriber.ID)
+
+	parsers := GetLogParsers()
+
+	line := `[2026.05.05-18.19.47:913][555]LogSquadTrace: [DedicatedServer]OnPossess(): PC=wolly (Online IDs: EOS: 0002f191d74c4554a974e4e1fd2f460c steam: 76561198038907506) Entered Vehicle Pawn=BP_Technical_Dshk_Green-Flag_2Seater_RSF_Bag_C_2145584826 (Asset Name = BP_Technical_Dshk_Green-Flag_2Seater_RSF_Bag_C) FullPath=BP_Technical_Dshk_Green-Flag_2Seater_RSF_Bag_C /SPM/Maps/Mutaha/Gameplay_Layer/PreCap/SPM_Mutaha_RAAS_v1_PreCap.SPM_Mutaha_RAAS_v1_PreCap:PersistentLevel.BP_Technical_Dshk_Green-Flag_2Seater_RSF_Bag_C_2145584826 Seat Number=0`
+	ProcessLogForEvents(line, serverID, parsers, em, store, nil)
+
+	event := waitForEvent(t, subscriber.Channel)
+	possessData, ok := event.Data.(*event_manager.LogPlayerPossessData)
+	if !ok {
+		t.Fatalf("possess event data type = %T, want *LogPlayerPossessData", event.Data)
+	}
+	if possessData.PossessClassname != "BP_Technical_Dshk_Green-Flag_2Seater_RSF_Bag" {
+		t.Fatalf("possess PossessClassname = %q, want SuperMod vehicle classname", possessData.PossessClassname)
+	}
+	if possessData.PlayerSteam != "76561198038907506" {
+		t.Fatalf("possess PlayerSteam = %q, want Steam ID", possessData.PlayerSteam)
+	}
+}
+
 func TestProcessLogForEventsParsesAdminToolsDisconnect(t *testing.T) {
 	t.Parallel()
 
@@ -500,5 +534,53 @@ func TestUnifiedGameParsersSkipAdminToolsBootstrapWorld(t *testing.T) {
 	}
 	if gameData.DLC != "SPM" || gameData.MapClassname != "Gorodok" || gameData.LayerClassname != "SPM_Gorodok_RAAS_v2_PreCap" {
 		t.Fatalf("game event map data = %q/%q/%q, want SPM/Gorodok/SPM_Gorodok_RAAS_v2_PreCap", gameData.DLC, gameData.MapClassname, gameData.LayerClassname)
+	}
+}
+
+func TestUnifiedGameParsersParseSuperModDrawWinner(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	em := event_manager.NewEventManager(ctx, 10)
+	defer em.Shutdown()
+
+	serverID := uuid.New()
+	store := newTestEventStore(serverID)
+	subscriber := em.Subscribe(event_manager.EventFilter{
+		Types: []event_manager.EventType{event_manager.EventTypeLogGameEventUnified},
+	}, nil, 10)
+	defer em.Unsubscribe(subscriber.ID)
+
+	parsers := GetUnifiedGameEventParsers()
+
+	line := `[2026.05.05-17.24.46:493][563]LogSquadTrace: [DedicatedServer]DetermineMatchWinner(): The game was a draw on SPM | Gorodok`
+	ProcessLogForEvents(line, serverID, parsers, em, store, nil)
+
+	event := waitForEvent(t, subscriber.Channel)
+	gameData, ok := event.Data.(*event_manager.LogGameEventUnifiedData)
+	if !ok {
+		t.Fatalf("game event data type = %T, want *LogGameEventUnifiedData", event.Data)
+	}
+	if gameData.EventType != "MATCH_WINNER" {
+		t.Fatalf("game event type = %q, want MATCH_WINNER", gameData.EventType)
+	}
+	if gameData.Winner != "Draw" {
+		t.Fatalf("game event winner = %q, want Draw", gameData.Winner)
+	}
+	if gameData.Layer != "SPM | Gorodok" {
+		t.Fatalf("game event layer = %q, want SPM | Gorodok", gameData.Layer)
+	}
+
+	wonData, exists := store.GetWonData()
+	if !exists {
+		t.Fatal("expected draw winner data to be stored")
+	}
+	if wonData.Winner != nil {
+		t.Fatalf("draw winner data Winner = %v, want nil", *wonData.Winner)
+	}
+	if wonData.Layer != "SPM | Gorodok" {
+		t.Fatalf("draw winner data Layer = %q, want SPM | Gorodok", wonData.Layer)
 	}
 }
