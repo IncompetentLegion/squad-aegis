@@ -86,6 +86,30 @@ func GetUnifiedGameEventParsers() []LogParser {
 				eventManager.PublishEvent(serverID, unifiedEvent, args[0])
 			},
 		},
+		// Match when game determines the match was a draw
+		{
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQGameMode::)?DetermineMatchWinner\(\): The game was a draw on (.+)`),
+			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
+				// Store nil winner data for correlation with NEW_GAME.
+				eventStore.StoreWonData(&WonData{
+					Time:    args[1],
+					ChainID: strings.TrimSpace(args[2]),
+					Winner:  nil,
+					Layer:   args[3],
+				})
+
+				unifiedEvent := &event_manager.LogGameEventUnifiedData{
+					Time:      args[1],
+					ChainID:   strings.TrimSpace(args[2]),
+					EventType: "MATCH_WINNER",
+					Winner:    "Draw",
+					Layer:     args[3],
+					RawLog:    args[0],
+				}
+
+				eventManager.PublishEvent(serverID, unifiedEvent, args[0])
+			},
+		},
 		// Match when game state changes to post-match (score board)
 		{
 			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogGameState: Match State Changed from InProgress to WaitingPostMatch`),
@@ -119,10 +143,10 @@ func GetUnifiedGameEventParsers() []LogParser {
 		},
 		// Match when bringing world (new game/map change)
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogWorld: Bringing World \/([A-z0-9]+)\/(?:Maps\/)?([A-z0-9-]+)\/(?:.+\/)?([A-z0-9-]+)(?:\.[A-z0-9-]+)`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogWorld: Bringing World \/([A-Za-z0-9_-]+)\/(?:Maps\/)?([A-Za-z0-9_-]+)\/(?:.+\/)?([A-Za-z0-9_-]+)(?:\.[A-Za-z0-9_-]+)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
-				// Skip transition map
-				if args[5] == "TransitionMap" {
+				// Skip transition and admin-tool bootstrap maps.
+				if args[5] == "TransitionMap" || args[5] == "VoiceConnect_Init" {
 					return
 				}
 

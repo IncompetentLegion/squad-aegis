@@ -34,6 +34,10 @@ func hasOnlineIdentifier(ids utils.OnlineIDs) bool {
 	return ids.EOSID != "" || ids.SteamID != "" || ids.EpicID != ""
 }
 
+func trimBlueprintClassSuffix(className string) string {
+	return strings.TrimSuffix(className, "_C")
+}
+
 // ProcessLogForEvents detects events based on regex and publishes them
 func ProcessLogForEvents(logLine string, serverID uuid.UUID, parsers []LogParser, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 	ProcessLogForEventsWithMetrics(logLine, serverID, parsers, eventManager, eventStore, playerTracker, nil)
@@ -154,7 +158,7 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQDeployable::)?TakeDamage\(\): ([A-z0-9_]+)_C_[0-9]+: ([0-9.]+) damage attempt by causer ([A-z0-9_]+)_C_[0-9]+ instigator (.+) with damage type ([A-z0-9_]+)_C health remaining ([0-9.]+)`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQDeployable::)?TakeDamage\(\): ([A-Za-z0-9_-]+)_C_[0-9]+: ([0-9.]+) damage attempt by causer ([A-Za-z0-9_-]+)_C_[0-9]+ instigator (.+) with damage type ((?:[A-Za-z0-9_-]+)_C|[A-Za-z0-9_-]+) health remaining ([0-9.]+)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				eventData := &event_manager.LogDeployableDamagedData{
 					Time:            args[1],
@@ -163,7 +167,7 @@ func GetLogParsers() []LogParser {
 					Damage:          args[4],
 					Weapon:          args[5],
 					PlayerSuffix:    args[6],
-					DamageType:      args[7],
+					DamageType:      trimBlueprintClassSuffix(args[7]),
 					HealthRemaining: args[8],
 				}
 
@@ -171,7 +175,7 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C .+PersistentLevel\.([^\s]+) \(IP: ([\d.]+) \| Online IDs:([^)]*)\)`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquad: PostLogin: NewPlayer: BP_PlayerController(?:_[A-Za-z0-9]+)*_C .+PersistentLevel\.([^\s]+) \(IP: ([\d.]+) \| Online IDs:([^)]*)\)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				onlineIDs := utils.ParseOnlineIDs(args[5])
 				var playerSuffix string
@@ -242,9 +246,10 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquad: Player:(.+) ActualDamage=([0-9.]+) from (.+) \(Online IDs:(.*?)\s*\|\s*Player Controller ID: ([^ )]+)\)caused by ([A-Za-z0-9_-]+)_C`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquad: Player:(.+) ActualDamage=([0-9.]+) from (.+) \(Online IDs:(.*?)\s*\|\s*Player Controller ID: ([^ )]+)\)caused by ((?:[A-Za-z0-9_-]+)_C|nullptr)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				onlineIDs := utils.ParseOnlineIDs(args[6])
+				weapon := trimBlueprintClassSuffix(args[8])
 
 				eventManagerData := &event_manager.LogPlayerDamagedData{
 					Time:               args[1],
@@ -255,7 +260,7 @@ func GetLogParsers() []LogParser {
 					AttackerEOS:        onlineIDs.EOSID,
 					AttackerSteam:      onlineIDs.SteamID,
 					AttackerController: args[7],
-					Weapon:             args[8],
+					Weapon:             weapon,
 				}
 
 				// Store session data for the victim
@@ -267,7 +272,7 @@ func GetLogParsers() []LogParser {
 					AttackerEOS:        onlineIDs.EOSID,
 					AttackerSteam:      onlineIDs.SteamID,
 					AttackerController: args[7],
-					Weapon:             args[8],
+					Weapon:             weapon,
 				}
 
 				// Store session data for the victim
@@ -406,12 +411,13 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Die\(\): Player:(.+) KillingDamage=(?:-)*([0-9.]+) from ([A-Za-z0-9_]+) \(Online IDs:(.*?)\s*\| Contoller ID: ([\w\d]+)\) caused by ([A-Za-z0-9_-]+)_C`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Die\(\): Player:(.+) KillingDamage=(?:-)*([0-9.]+) from ([A-Za-z0-9_-]+) \(Online IDs:(.*?)\s*\| Contoller ID: ([\w\d]+)\) caused by ((?:[A-Za-z0-9_-]+)_C|nullptr)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				onlineIDs := utils.ParseOnlineIDs(args[6])
 				if !hasOnlineIdentifier(onlineIDs) {
 					return
 				}
+				weapon := trimBlueprintClassSuffix(args[8])
 
 				// Get existing session data for this victim
 				victimName := args[3]
@@ -429,7 +435,7 @@ func GetLogParsers() []LogParser {
 					AttackerPlayerController: args[7],
 					AttackerEOS:              onlineIDs.EOSID,
 					AttackerSteam:            onlineIDs.SteamID,
-					Weapon:                   args[8],
+					Weapon:                   weapon,
 				}
 
 				// Build session data, merging with existing session data
@@ -443,7 +449,7 @@ func GetLogParsers() []LogParser {
 					AttackerEOS:        existingData.AttackerEOS,
 					AttackerSteam:      existingData.AttackerSteam,
 					AttackerController: args[7],
-					Weapon:             args[8],
+					Weapon:             weapon,
 					TeamID:             existingData.TeamID,
 					EOSID:              existingData.EOSID,
 				}
@@ -603,7 +609,7 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQPlayerController::)?OnPossess\(\): PC=(.+) \(Online IDs:([^)]*)\) Pawn=([A-Za-z0-9_]+)_C`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQPlayerController::)?OnPossess\(\): PC=(.+) \(Online IDs:([^)]*)\) (?:Entered Vehicle )?Pawn=([A-Za-z0-9_-]+)_C`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				onlineIDs := utils.ParseOnlineIDs(args[4])
 				eventManagerData := &event_manager.LogPlayerPossessData{
@@ -680,15 +686,16 @@ func GetLogParsers() []LogParser {
 		{
 			regex: regexp.MustCompile(
 				`^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Wound\(\): Player:(.+) ` +
-					`KillingDamage=(?:-)*([0-9.]+) from ([A-Za-z0-9_]+) ` +
+					`KillingDamage=(?:-)*([0-9.]+) from ([A-Za-z0-9_-]+) ` +
 					`\(Online IDs:(.*?)\s*\| Controller ID: ([\w\d]+)\) ` +
-					`caused by ([A-Za-z0-9_-]+)_C`,
+					`caused by ((?:[A-Za-z0-9_-]+)_C|nullptr)`,
 			),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				onlineIDs := utils.ParseOnlineIDs(args[6])
 				if !hasOnlineIdentifier(onlineIDs) {
 					return
 				}
+				weapon := trimBlueprintClassSuffix(args[8])
 
 				// Get existing session data for this victim
 				victimName := args[3]
@@ -705,7 +712,7 @@ func GetLogParsers() []LogParser {
 					AttackerPlayerController: args[7],
 					AttackerEOS:              onlineIDs.EOSID,
 					AttackerSteam:            onlineIDs.SteamID,
-					Weapon:                   args[8],
+					Weapon:                   weapon,
 				}
 
 				// Build session data, merging with existing session data
@@ -719,7 +726,7 @@ func GetLogParsers() []LogParser {
 					AttackerEOS:        existingData.AttackerEOS,
 					AttackerSteam:      existingData.AttackerSteam,
 					AttackerController: args[7],
-					Weapon:             args[8],
+					Weapon:             weapon,
 					TeamID:             existingData.TeamID,
 					EOSID:              existingData.EOSID,
 				}
@@ -833,7 +840,7 @@ func GetLogParsers() []LogParser {
 			},
 		},
 		{
-			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: ([\d.]+):[\d]+, Name: RedpointEOSIpNetConnection_[0-9]+, Driver: Name:GameNetDriver Def:GameNetDriver RedpointEOSNetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController_C_[0-9]+), Owner: [^ ]+PlayerController_C_[0-9]+, UniqueId: RedpointEOS:([\da-f]+)`),
+			regex: regexp.MustCompile(`^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: ([\d.]+):[\d]+, Name: RedpointEOSIpNetConnection_[0-9]+, Driver: Name:GameNetDriver Def:GameNetDriver RedpointEOSNetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController(?:_[A-Za-z0-9]+)*_C_[0-9]+), Owner: [^ ]+PlayerController(?:_[A-Za-z0-9]+)*_C_[0-9]+, UniqueId: RedpointEOS:([\da-f]+)`),
 			onMatch: func(args []string, serverID uuid.UUID, eventManager *event_manager.EventManager, eventStore EventStoreInterface, playerTracker *player_tracker.PlayerTracker) {
 				player, ok := eventStore.GetPlayerData(args[5])
 				if !ok {
