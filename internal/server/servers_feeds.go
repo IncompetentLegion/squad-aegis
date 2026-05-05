@@ -90,7 +90,6 @@ func (s *Server) ServerFeeds(c *gin.Context) {
 			eventTypes = append(eventTypes, event_manager.EventTypeRconChatMessage)
 		case "connections":
 			eventTypes = append(eventTypes,
-				event_manager.EventTypeLogPlayerConnected,
 				event_manager.EventTypeLogJoinSucceeded,
 				event_manager.EventTypeLogPlayerDisconnected,
 			)
@@ -440,7 +439,8 @@ func (s *Server) getHistoricalConnectionsWithPagination(serverId uuid.UUID, limi
 		return []FeedEvent{}, nil
 	}
 
-	// Union query to get both connected and join succeeded events
+	// Use join succeeded events for feed entries because raw connected events can
+	// arrive before the player suffix is known and only have a controller name.
 	var query string
 	var args []interface{}
 
@@ -450,17 +450,6 @@ func (s *Server) getHistoricalConnectionsWithPagination(serverId uuid.UUID, limi
 				SELECT 
 					chain_id as id,
 					event_time,
-					'connected' as action,
-					player_controller,
-					ip,
-					steam,
-					eos
-				FROM squad_aegis.server_player_connected_events 
-				WHERE server_id = ? AND event_time < ?
-				UNION ALL
-				SELECT 
-					chain_id as id,
-					event_time,
 					'joined' as action,
 					player_suffix as player_controller,
 					ip,
@@ -480,24 +469,13 @@ func (s *Server) getHistoricalConnectionsWithPagination(serverId uuid.UUID, limi
 				FROM squad_aegis.server_player_disconnected_events 
 				WHERE server_id = ? AND event_time < ?
 			) ORDER BY event_time DESC LIMIT ?`
-		args = []interface{}{serverId, *beforeTime, serverId, *beforeTime, serverId, *beforeTime, limit}
+		args = []interface{}{serverId, *beforeTime, serverId, *beforeTime, limit}
 	} else {
 		query = `
 			SELECT * FROM (
 				SELECT 
 					chain_id as id,
 					event_time,
-					'connected' as action,
-					player_controller,
-					ip,
-					steam,
-					eos
-				FROM squad_aegis.server_player_connected_events 
-				WHERE server_id = ?
-				UNION ALL
-				SELECT 
-					chain_id as id,
-					event_time,
 					'joined' as action,
 					player_suffix as player_controller,
 					ip,
@@ -517,7 +495,7 @@ func (s *Server) getHistoricalConnectionsWithPagination(serverId uuid.UUID, limi
 				FROM squad_aegis.server_player_disconnected_events 
 				WHERE server_id = ?
 			) ORDER BY event_time DESC LIMIT ?`
-		args = []interface{}{serverId, serverId, serverId, limit}
+		args = []interface{}{serverId, serverId, limit}
 	}
 
 	rows, err := s.Dependencies.Clickhouse.Query(context.Background(), query, args...)

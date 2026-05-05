@@ -45,6 +45,10 @@ const toDate = (value: ChartTimeValue) => {
     return value;
   }
 
+  if (typeof value === "string" && value.startsWith("t:")) {
+    return new Date(Number(value.slice(2)));
+  }
+
   return new Date(value);
 };
 
@@ -72,7 +76,7 @@ export const toChartTime = (timestamp: string) => {
     return timestamp;
   }
 
-  return date.getTime();
+  return `t:${date.getTime()}`;
 };
 
 export const formatChartAxisTime = (
@@ -137,7 +141,7 @@ export const getTimeTickCount = (timestamps: ChartTimeValue[]) => {
 };
 
 export const buildTimeMeta = (timestamps: ChartTimeValue[]) => ({
-  type: "time" as const,
+  type: "cat" as const,
   tickCount: getTimeTickCount(timestamps),
 });
 
