@@ -820,6 +820,48 @@ func (p *TeamBalancerPlugin) formatTeamNameForBroadcast(teamID int) string {
 	return name
 }
 
+func parseTeamID(value interface{}) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case string:
+		id, _ := strconv.Atoi(v)
+		return id
+	default:
+		return 0
+	}
+}
+
+func determineWinnerTeamID(event *event_manager.LogGameEventUnifiedData, winnerData map[string]interface{}, cachedTeamNames map[int]string) int {
+	if winnerData != nil {
+		if winnerID := parseTeamID(winnerData["team"]); winnerID != 0 {
+			return winnerID
+		}
+	}
+
+	if event.Winner == "" {
+		return 0
+	}
+
+	// Winner might be "1" or "2" or a faction name.
+	if id, err := strconv.Atoi(event.Winner); err == nil {
+		return id
+	}
+
+	// Fall back to cached team names when structured ticket data is unavailable.
+	for teamID, name := range cachedTeamNames {
+		winner := strings.ToLower(event.Winner)
+		teamName := strings.ToLower(name)
+		if strings.Contains(winner, teamName) || strings.Contains(teamName, winner) {
+			return teamID
+		}
+	}
+
+	return 0
+}
+
 // Event Handlers
 
 // handleGameEvent processes unified game events (ROUND_ENDED, NEW_GAME)
@@ -879,22 +921,7 @@ func (p *TeamBalancerPlugin) handleRoundEnded(event *event_manager.LogGameEventU
 	}
 
 	// Determine winner team ID
-	winnerID := 0
-	if event.Winner != "" {
-		// Winner might be "1" or "2" or faction name
-		if id, err := strconv.Atoi(event.Winner); err == nil {
-			winnerID = id
-		} else {
-			// Try to match faction name to team
-			for teamID, name := range p.cachedTeamNames {
-				if strings.Contains(strings.ToLower(event.Winner), strings.ToLower(name)) {
-					winnerID = teamID
-					break
-				}
-			}
-		}
-	}
-
+	winnerID := determineWinnerTeamID(event, winnerData, p.cachedTeamNames)
 	if winnerID == 0 {
 		p.apis.LogAPI.Warn("Could not determine winner team ID", map[string]interface{}{
 			"winner": event.Winner,
