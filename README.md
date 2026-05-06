@@ -4,9 +4,23 @@
 
 # Squad Aegis
 
-A comprehensive control panel for Squad game server administration
+Incompetent Legion's fork of Squad Aegis, a comprehensive control panel for Squad game server administration
 
 </div>
+
+## Incompetent Legion Fork
+
+This repository is the Incompetent Legion fork of [Codycody31/squad-aegis](https://github.com/Codycody31/squad-aegis). It keeps the upstream project's core goal of providing a web control panel for Squad servers, but carries changes needed to run it reliably against our server setup and deployment workflow.
+
+The fork currently focuses on:
+
+- **SAT/SPM/SuperMod compatibility**: Expanded log parsing for SuperMod/SAT/SPM variants, including `PostLogin`, draw events, vehicle possess events, and map names that use prefixes such as `SU_` or suffixes such as `_HalfCap`.
+- **More reliable server and player data**: Fixes for connection feed attribution, session counts, combat/player history totals, team balancer winner detection, and chart ranges where different metrics start at different times.
+- **Dashboard and UI fixes**: Better chart time labels, consistent server metric ranges, map thumbnail lookup for modded layers, and layout protection for long unbroken chat messages.
+- **Container publishing**: A GitHub Actions workflow builds and publishes Docker images to GHCR, and the compose example uses that image path.
+- **Authentication hardening**: Sessions now use server-set HttpOnly cookies, hashed session tokens, safer login errors, Valkey-backed failed-login rate limiting, password-policy enforcement, and revocation of other sessions after password changes.
+
+The reason for these changes is practical: the upstream project assumes mostly vanilla Squad log formats and local/manual deployment patterns, while Incompetent Legion runs a modded server stack with SuperMod/SAT/SPM and wants reproducible container deploys with fewer dashboard blind spots.
 
 ## Notice
 
