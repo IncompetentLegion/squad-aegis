@@ -248,6 +248,7 @@ func (s *Server) getMetricsFromClickHouse(ctx context.Context, serverId uuid.UUI
 	}
 	defer rows.Close()
 
+	playerCountDataMap := make(map[int64]map[string]interface{})
 	for rows.Next() {
 		var timestamp int64
 		var avgPlayerCount, avgPublicQueue, avgReservedQueue float64
@@ -255,16 +256,14 @@ func (s *Server) getMetricsFromClickHouse(ctx context.Context, serverId uuid.UUI
 			log.Error().Err(err).Msg("Failed to scan player count metric")
 			continue
 		}
-		metricsData.PlayerCount = append(metricsData.PlayerCount, MetricPoint{
-			Timestamp: time.Unix(timestamp/1000, 0),
-			Value: map[string]interface{}{
-				"player_count":   int(avgPlayerCount),
-				"public_queue":   int(avgPublicQueue),
-				"reserved_queue": int(avgReservedQueue),
-				"total_queue":    int(avgPublicQueue + avgReservedQueue),
-			},
-		})
+		playerCountDataMap[timestamp] = map[string]interface{}{
+			"player_count":   int(avgPlayerCount),
+			"public_queue":   int(avgPublicQueue),
+			"reserved_queue": int(avgReservedQueue),
+			"total_queue":    int(avgPublicQueue + avgReservedQueue),
+		}
 	}
+	metricsData.PlayerCount = fillPlayerCountSeriesGaps(startTime, endTime, intervalMinutes, playerCountDataMap)
 
 	// Query queue count metrics from server info data
 	queueCountQuery := `
@@ -316,6 +315,7 @@ func (s *Server) getMetricsFromClickHouse(ctx context.Context, serverId uuid.UUI
 		log.Error().Err(err).Msg("Failed to query tick rate metrics from ClickHouse")
 	} else {
 		defer rows.Close()
+		tickRateDataMap := make(map[int64]float64)
 		for rows.Next() {
 			var timestamp int64
 			var value float64
@@ -323,11 +323,9 @@ func (s *Server) getMetricsFromClickHouse(ctx context.Context, serverId uuid.UUI
 				log.Error().Err(err).Msg("Failed to scan tick rate metric")
 				continue
 			}
-			metricsData.TickRate = append(metricsData.TickRate, MetricPoint{
-				Timestamp: time.Unix(timestamp/1000, 0),
-				Value:     value, // Keep as float64 for precise tick rate
-			})
+			tickRateDataMap[timestamp] = value
 		}
+		metricsData.TickRate = fillFloatSeriesGaps(startTime, endTime, intervalMinutes, tickRateDataMap)
 	}
 
 	// Query chat activity metrics
@@ -1296,6 +1294,81 @@ func fillTimeSeriesGaps(startTime, endTime time.Time, intervalMinutes int, dataM
 			value = val
 		} else {
 			// Try with small tolerance (±1 second) for potential rounding differences
+			for tolerance := int64(-1000); tolerance <= 1000; tolerance += 1000 {
+				if val, exists := dataMap[timestamp+tolerance]; exists {
+					value = val
+					break
+				}
+			}
+		}
+
+		points = append(points, MetricPoint{
+			Timestamp: current,
+			Value:     value,
+		})
+	}
+
+	return points
+}
+
+func fillPlayerCountSeriesGaps(startTime, endTime time.Time, intervalMinutes int, dataMap map[int64]map[string]interface{}) []MetricPoint {
+	var points []MetricPoint
+
+	interval := time.Duration(intervalMinutes) * time.Minute
+	startTimestamp := startTime.Truncate(interval)
+
+	endTimestamp := endTime.Truncate(interval)
+	if endTime.After(endTimestamp) {
+		endTimestamp = endTimestamp.Add(interval)
+	}
+
+	lastValue := map[string]interface{}{
+		"player_count":   0,
+		"public_queue":   0,
+		"reserved_queue": 0,
+		"total_queue":    0,
+	}
+
+	for current := startTimestamp; current.Before(endTimestamp) || current.Equal(endTimestamp); current = current.Add(interval) {
+		timestamp := current.Unix() * 1000
+		if val, exists := dataMap[timestamp]; exists {
+			lastValue = val
+		} else {
+			for tolerance := int64(-1000); tolerance <= 1000; tolerance += 1000 {
+				if val, exists := dataMap[timestamp+tolerance]; exists {
+					lastValue = val
+					break
+				}
+			}
+		}
+
+		points = append(points, MetricPoint{
+			Timestamp: current,
+			Value:     lastValue,
+		})
+	}
+
+	return points
+}
+
+func fillFloatSeriesGaps(startTime, endTime time.Time, intervalMinutes int, dataMap map[int64]float64) []MetricPoint {
+	var points []MetricPoint
+
+	interval := time.Duration(intervalMinutes) * time.Minute
+	startTimestamp := startTime.Truncate(interval)
+
+	endTimestamp := endTime.Truncate(interval)
+	if endTime.After(endTimestamp) {
+		endTimestamp = endTimestamp.Add(interval)
+	}
+
+	for current := startTimestamp; current.Before(endTimestamp) || current.Equal(endTimestamp); current = current.Add(interval) {
+		timestamp := current.Unix() * 1000
+		var value interface{}
+
+		if val, exists := dataMap[timestamp]; exists {
+			value = val
+		} else {
 			for tolerance := int64(-1000); tolerance <= 1000; tolerance += 1000 {
 				if val, exists := dataMap[timestamp+tolerance]; exists {
 					value = val
