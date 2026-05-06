@@ -65,18 +65,9 @@ async function fetchKVPairs() {
     loading.value = true;
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
-        const { data, error: fetchError } = await useFetch<any>(
+        const { data, error: fetchError } = await useAuthFetch<any>(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/workflows/${props.workflowId}/kv`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            },
         );
 
         if (fetchError.value) {
@@ -120,10 +111,6 @@ async function addKVPair() {
         }
 
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/workflows/${props.workflowId}/kv`,
@@ -131,8 +118,8 @@ async function addKVPair() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     key: newKV.value.key,
                     value: parsedValue,
@@ -183,10 +170,6 @@ async function updateKVPair() {
         }
 
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         // If key changed, delete old key and create new one
         if (editKV.value.key !== editKV.value.originalKey) {
@@ -199,8 +182,8 @@ async function updateKVPair() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     key: editKV.value.key,
                     value: parsedValue,
@@ -233,18 +216,12 @@ async function updateKVPair() {
 async function deleteKVPairByKey(key: string, showToast = true) {
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/workflows/${props.workflowId}/kv/${encodeURIComponent(key)}`,
             {
                 method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                credentials: "include",
             },
         );
 
@@ -294,18 +271,12 @@ async function clearAllKV() {
 
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/workflows/${props.workflowId}/kv`,
             {
                 method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                credentials: "include",
             },
         );
 

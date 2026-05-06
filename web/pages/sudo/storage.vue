@@ -95,7 +95,7 @@ const toggleAllFiles = () => {
 
 const downloadFile = async (path: string) => {
   try {
-    window.open(`${runtimeConfig.public.backendApi}/sudo/storage/files/${path}?token=${authStore.token}`, '_blank');
+    window.open(`${runtimeConfig.public.backendApi}/sudo/storage/files/${path}`, '_blank');
   } catch (err: any) {
     console.error("Error downloading file:", err);
   }
@@ -376,4 +376,3 @@ onMounted(() => {
     </Dialog>
   </div>
 </template>
-

@@ -335,10 +335,6 @@ interface MOTDConfig {
 const route = useRoute();
 const { toast } = useToast();
 
-const runtimeConfig = useRuntimeConfig();
-const cookieToken = useCookie(runtimeConfig.public.sessionCookieName as string);
-const token = cookieToken.value;
-
 const serverId = route.params.serverId as string;
 
 const config = ref<MOTDConfig>({
@@ -381,9 +377,7 @@ const formatDate = (dateString: string) => {
 const fetchConfig = async () => {
     try {
         const response = await fetch(`/api/servers/${serverId}/motd`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            credentials: "include",
         });
         const data = await response.json();
 
@@ -408,8 +402,8 @@ const saveConfig = async () => {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
             },
+            credentials: "include",
             body: JSON.stringify({
                 prefix_text: config.value.prefix_text,
                 suffix_text: config.value.suffix_text,
@@ -455,9 +449,7 @@ const refreshPreview = async () => {
     isLoadingPreview.value = true;
     try {
         const response = await fetch(`/api/servers/${serverId}/motd/preview`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            credentials: "include",
         });
         const data = await response.json();
 
@@ -501,9 +493,7 @@ const testConnection = async () => {
     try {
         const response = await fetch(`/api/servers/${serverId}/motd/test-connection`, {
             method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            credentials: "include",
         });
         const data = await response.json();
 
@@ -535,9 +525,7 @@ const uploadMOTD = async () => {
     try {
         const response = await fetch(`/api/servers/${serverId}/motd/upload`, {
             method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            credentials: "include",
         });
         const data = await response.json();
 

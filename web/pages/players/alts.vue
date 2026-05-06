@@ -61,17 +61,6 @@ async function fetchAltGroups(resetPage = false) {
   loading.value = true;
   error.value = null;
 
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
-
-  if (!token) {
-    error.value = "Authentication required";
-    loading.value = false;
-    return;
-  }
-
   try {
     const response = await fetch(
       `${runtimeConfig.public.backendApi}/players/alt-groups?page=${page.value}&limit=${limit}`,
@@ -79,7 +68,6 @@ async function fetchAltGroups(resetPage = false) {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       }

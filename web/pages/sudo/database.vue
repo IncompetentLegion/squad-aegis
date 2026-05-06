@@ -21,12 +21,8 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const [pgRes, chRes] = await Promise.all([
-      $fetch<any>(`${runtimeConfig.public.backendApi}/sudo/database/postgresql`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      }),
-      $fetch<any>(`${runtimeConfig.public.backendApi}/sudo/database/clickhouse`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      }),
+      useAuthFetchImperative<any>(`${runtimeConfig.public.backendApi}/sudo/database/postgresql`),
+      useAuthFetchImperative<any>(`${runtimeConfig.public.backendApi}/sudo/database/clickhouse`),
     ]);
     pgStats.value = pgRes.data.data;
     chStats.value = chRes.data.data;
@@ -178,4 +174,3 @@ onMounted(fetchData);
     </Tabs>
   </div>
 </template>
-

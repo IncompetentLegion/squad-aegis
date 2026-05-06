@@ -67,16 +67,6 @@ interface StatsResponse {
 async function fetchPlayerStats() {
   statsLoading.value = true;
 
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
-
-  if (!token) {
-    statsLoading.value = false;
-    return;
-  }
-
   try {
     const response = await fetch(
       `${runtimeConfig.public.backendApi}/players/stats`,
@@ -84,7 +74,6 @@ async function fetchPlayerStats() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       }
@@ -113,18 +102,6 @@ async function searchPlayers() {
   error.value = null;
   hasSearched.value = true;
 
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
-
-  if (!token) {
-    error.value = "Authentication required";
-    loading.value = false;
-    players.value = [];
-    return;
-  }
-
   try {
     const response = await fetch(
       `${runtimeConfig.public.backendApi}/players?search=${encodeURIComponent(searchQuery.value)}`,
@@ -132,7 +109,6 @@ async function searchPlayers() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       }

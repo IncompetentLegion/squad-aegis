@@ -19,12 +19,8 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const [timelineRes, activitiesRes] = await Promise.all([
-      $fetch<any>(`${runtimeConfig.public.backendApi}/sudo/metrics/timeline`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      }),
-      $fetch<any>(`${runtimeConfig.public.backendApi}/sudo/metrics/servers`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      }),
+      useAuthFetchImperative<any>(`${runtimeConfig.public.backendApi}/sudo/metrics/timeline`),
+      useAuthFetchImperative<any>(`${runtimeConfig.public.backendApi}/sudo/metrics/servers`),
     ]);
     timeline.value = timelineRes.data.data;
     activities.value = activitiesRes.data.data;
@@ -80,4 +76,3 @@ onMounted(fetchData);
     </div>
   </div>
 </template>
-

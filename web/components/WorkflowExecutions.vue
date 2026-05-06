@@ -270,12 +270,6 @@ const getTriggerDescription = (triggerData: any) => {
 
 const loadExecutions = async (append = false) => {
   try {
-    const runtimeConfig = useRuntimeConfig();
-    const cookieToken = useCookie(
-      runtimeConfig.public.sessionCookieName as string
-    );
-    const token = cookieToken.value;
-
     loading.value = true;
     error.value = null;
 
@@ -284,7 +278,7 @@ const loadExecutions = async (append = false) => {
       offset.value = 0;
     }
 
-    const response = await $fetch<
+    const response = await useAuthFetchImperative<
       ApiResponse<{
         executions: WorkflowExecution[];
         limit: number;
@@ -296,9 +290,6 @@ const loadExecutions = async (append = false) => {
         query: {
           limit: limit.value,
           offset: offset.value,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
         },
       }
     );

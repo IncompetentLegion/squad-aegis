@@ -65,17 +65,11 @@ async function fetchPluginData() {
     loading.value = true;
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/plugins/${props.pluginId}/data`,
             {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                credentials: "include",
             },
         );
 
@@ -114,10 +108,6 @@ async function addDataItem() {
 
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/plugins/${props.pluginId}/data`,
@@ -125,8 +115,8 @@ async function addDataItem() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     key: newData.value.key,
                     value: newData.value.value,
@@ -169,10 +159,6 @@ async function updateDataItem() {
 
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         // If key changed, delete old key first
         if (editData.value.key !== editData.value.originalKey) {
@@ -185,8 +171,8 @@ async function updateDataItem() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     key: editData.value.key,
                     value: editData.value.value,
@@ -219,18 +205,12 @@ async function updateDataItem() {
 async function deleteDataItemByKey(key: string, showToast = true) {
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/plugins/${props.pluginId}/data/${encodeURIComponent(key)}`,
             {
                 method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                credentials: "include",
             },
         );
 
@@ -280,18 +260,12 @@ async function clearAllData() {
 
     try {
         const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
 
         const response = await fetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/plugins/${props.pluginId}/data`,
             {
                 method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                credentials: "include",
             },
         );
 

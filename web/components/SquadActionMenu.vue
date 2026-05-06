@@ -82,21 +82,6 @@ async function executeSquadAction() {
 
     isActionLoading.value = true;
     const runtimeConfig = useRuntimeConfig();
-    const cookieToken = useCookie(
-        runtimeConfig.public.sessionCookieName as string,
-    );
-    const token = cookieToken.value;
-
-    if (!token) {
-        toast({
-            title: "Authentication Error",
-            description: "You must be logged in to perform this action",
-            variant: "destructive",
-        });
-        isActionLoading.value = false;
-        closeActionDialog();
-        return;
-    }
 
     try {
         const endpoint = `${runtimeConfig.public.backendApi}/servers/${props.serverId}/rcon/execute`;
@@ -115,10 +100,9 @@ async function executeSquadAction() {
                         eos_id: player.eosId || player.eos_id || "",
                     };
 
-                    const { error: moveError } = await useFetch(moveEndpoint, {
+                    const { error: moveError } = await useAuthFetch(moveEndpoint, {
                         method: "POST",
                         headers: {
-                            Authorization: `Bearer ${token}`,
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify(movePayload),
@@ -159,10 +143,9 @@ async function executeSquadAction() {
             command: command,
         };
 
-        const { data, error: fetchError } = await useFetch(endpoint, {
+        const { data, error: fetchError } = await useAuthFetch(endpoint, {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(payload),
@@ -315,4 +298,3 @@ async function executeSquadAction() {
         </DialogContent>
     </Dialog>
 </template>
-

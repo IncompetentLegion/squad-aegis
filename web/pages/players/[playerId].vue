@@ -51,17 +51,6 @@ async function fetchPlayerProfile() {
 
   const playerId = route.params.playerId as string;
 
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
-
-  if (!token) {
-    error.value = "Authentication required";
-    loading.value = false;
-    return;
-  }
-
   try {
     const response = await fetch(
       `${runtimeConfig.public.backendApi}/players/${playerId}`,
@@ -69,7 +58,6 @@ async function fetchPlayerProfile() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       }
