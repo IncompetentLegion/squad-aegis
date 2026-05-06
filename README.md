@@ -32,7 +32,7 @@ The project is currently in the early stages of development and is not ready for
 
 ## Acknowledgments
 
-See [Acknowledgements](https://squad-aegis.com/docs/acknowledgements) for more details.
+This fork is based on [Codycody31/squad-aegis](https://github.com/Codycody31/squad-aegis). Upstream attribution and license notices are preserved in [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 ## Features
 
@@ -56,7 +56,7 @@ We welcome contributions!
 
 For help and support, you can refer to the resources below:
 
-- **Issue Tracker**: [Submit bug reports and feature requests](https://github.com/Codycody31/squad-aegis/issues)
+- **Issue Tracker**: [Submit bug reports and feature requests](https://github.com/IncompetentLegion/squad-aegis/issues)
 
 ## License
 

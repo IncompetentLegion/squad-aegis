@@ -57,8 +57,9 @@ const userServerRoles = ref<{ [serverId: string]: string[] }>({});
 // About Dialog
 const isAboutDialogOpen = ref(false);
 const appVersion = ref<string | null>(null);
-const developerName = "Codycody31"; // As per GitHub repo owner
-const githubRepoUrl = "https://github.com/Codycody31/squad-aegis"; // From git remote URL
+const forkName = "Incompetent Legion";
+const forkRepoUrl = "https://github.com/IncompetentLegion/squad-aegis";
+const upstreamRepoUrl = "https://github.com/Codycody31/squad-aegis";
 
 const fetchVersionInfo = async () => {
   try {
@@ -376,18 +377,29 @@ await fetchServers();
           <span class="col-span-3">{{ appVersion ?? 'Loading...' }}</span>
         </div>
         <div class="grid grid-cols-4 items-center gap-4">
-          <span class="text-sm font-medium">Developer:</span>
-          <span class="col-span-3">{{ developerName }}</span>
+          <span class="text-sm font-medium">Fork:</span>
+          <span class="col-span-3">{{ forkName }}</span>
         </div>
         <div class="grid grid-cols-4 items-center gap-4">
           <span class="text-sm font-medium">Source:</span>
           <a
-            :href="githubRepoUrl"
+            :href="forkRepoUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="col-span-3 text-primary hover:underline"
           >
             GitHub Repository
+          </a>
+        </div>
+        <div class="grid grid-cols-4 items-center gap-4">
+          <span class="text-sm font-medium">Upstream:</span>
+          <a
+            :href="upstreamRepoUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="col-span-3 text-primary hover:underline"
+          >
+            Codycody31/squad-aegis
           </a>
         </div>
       </div>
