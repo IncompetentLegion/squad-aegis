@@ -167,8 +167,8 @@
                         {{ formatTimestamp(message.timestamp) }}
                       </span>
                     </div>
-                    <div class="flex items-start justify-between gap-2">
-                      <p class="text-sm sm:text-base text-foreground flex-1 break-words">
+                    <div class="flex items-start justify-between gap-2 min-w-0">
+                      <p class="text-sm sm:text-base text-foreground flex-1 min-w-0 break-all whitespace-pre-wrap">
                         {{ message.data.message }}
                       </p>
                       <div class="flex-shrink-0">
