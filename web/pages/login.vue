@@ -48,6 +48,7 @@ const onSubmit = form.handleSubmit(async (values) => {
     {
       method: "POST",
       body: values,
+      credentials: "include",
     }
   );
 
@@ -63,10 +64,7 @@ const onSubmit = form.handleSubmit(async (values) => {
   }
 
   if (data.value) {
-    let { token, expires_at } = data.value.data.session;
-    expires_at = new Date(expires_at);
-    document.cookie = `${runtimeConfig.public.sessionCookieName}=${token}; expires=${expires_at.toUTCString()}; path=/`;
-    useAuthStore().fetch();
+    await useAuthStore().fetch();
     navigateTo("/dashboard");
   }
 });

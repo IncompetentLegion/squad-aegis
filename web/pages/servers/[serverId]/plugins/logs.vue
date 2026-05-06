@@ -403,21 +403,11 @@ const connectToLogs = async () => {
     error.value = null;
 
     try {
-        const runtimeConfig = useRuntimeConfig();
-        const cookieToken = useCookie(
-            runtimeConfig.public.sessionCookieName as string,
-        );
-        const token = cookieToken.value;
-
-        if (!token) {
-            throw new Error("Authentication required");
-        }
-
         // Convert HTTP/HTTPS URL to WebSocket URL
         const backendUrl = window.location.origin;
         const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
         const baseUrl = backendUrl.replace(/^https?:\/\//, "");
-        const url = `${wsProtocol}://${baseUrl}/api/servers/${serverId}/plugins/logs/ws?token=${token}`;
+        const url = `${wsProtocol}://${baseUrl}/api/servers/${serverId}/plugins/logs/ws`;
 
         websocket = new WebSocket(url);
 

@@ -30,12 +30,8 @@ const fetchData = async () => {
 
   try {
     const [metricsRes, healthRes] = await Promise.all([
-      $fetch<any>(`${runtimeConfig.public.backendApi}/sudo/metrics/overview`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      }),
-      $fetch<any>(`${runtimeConfig.public.backendApi}/sudo/system/health`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      }),
+      useAuthFetchImperative<any>(`${runtimeConfig.public.backendApi}/sudo/metrics/overview`),
+      useAuthFetchImperative<any>(`${runtimeConfig.public.backendApi}/sudo/system/health`),
     ]);
 
     metricsOverview.value = metricsRes.data.data;
@@ -276,4 +272,3 @@ const getStatusBadgeVariant = (status: string) => {
     </div>
   </div>
 </template>
-

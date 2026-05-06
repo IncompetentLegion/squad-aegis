@@ -510,10 +510,6 @@ const route = useRoute();
 const router = useRouter();
 const { toast } = useToast();
 
-const runtimeConfig = useRuntimeConfig();
-const cookieToken = useCookie(runtimeConfig.public.sessionCookieName as string);
-const token = cookieToken.value;
-
 const serverId = route.params.serverId;
 const serverStatus = ref<any>(null);
 const serverForm = ref({
@@ -547,9 +543,7 @@ const selectedLogSourceType = ref<string>("");
 const fetchServerDetails = async () => {
     try {
         const response = await fetch(`/api/servers/${serverId}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            credentials: "include",
         });
         const data = await response.json();
 
@@ -588,9 +582,7 @@ const fetchServerDetails = async () => {
 // fetch server status
 const fetchServerStatus = async () => {
     const response = await fetch(`/api/servers/${serverId}/status?log_probe=1`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
     });
     const data = await response.json();
     if (data.code === 200) {
@@ -633,8 +625,8 @@ const updateServer = async () => {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
             },
+            credentials: "include",
             body: JSON.stringify(payload),
         });
 
@@ -675,8 +667,8 @@ const restartRcon = async () => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: "include",
             },
         );
 
@@ -718,8 +710,8 @@ const restartLogWatcher = async () => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: "include",
             },
         );
 
@@ -762,9 +754,7 @@ const deleteServer = async () => {
     try {
         const response = await fetch(`/api/servers/${serverId}`, {
             method: "DELETE",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            credentials: "include",
         });
 
         const data = await response.json();

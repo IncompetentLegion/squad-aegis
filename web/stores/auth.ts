@@ -24,36 +24,30 @@ export const useAuthStore = defineStore("auth", {
   actions: {
     async fetch() {
       const runtimeConfig = useRuntimeConfig();
-      const cookieToken = useCookie(
-        runtimeConfig.public.sessionCookieName as string
-      );
-      const token = cookieToken.value;
-
-      if (!token) {
-        return;
-      }
 
       const { data, error } = await useFetch(
         `${runtimeConfig.public.backendApi}/auth/initial`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: "include",
         }
       );
 
       if (error.value && error.value.statusCode === 401) {
         this.user = null;
         this.token = null;
-        document.cookie = `${runtimeConfig.public.sessionCookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-        navigateTo("/login");
-        return;
+        return false;
+      }
+
+      if (!data.value?.data?.user) {
+        this.logout();
+        return false;
       }
 
       this.user = data.value?.data.user as User;
       this.serverPermissions = data.value?.data
         .serverPermissions as Record<string, string[]>;
-      this.token = token;
+      this.token = null;
+      return true;
     },
 
     // Get raw permissions array for a server

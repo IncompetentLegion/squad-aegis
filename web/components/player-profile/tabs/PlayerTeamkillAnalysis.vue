@@ -30,24 +30,11 @@ async function fetchTeamkillAnalysis() {
   loading.value = true;
   error.value = null;
 
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
-
-  if (!token) {
-    error.value = "Authentication required";
-    loading.value = false;
-    return;
-  }
-
   try {
     const response = await fetch(
       `${runtimeConfig.public.backendApi}/players/${props.playerId}/teamkills`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       }
     );
 

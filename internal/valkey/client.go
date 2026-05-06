@@ -143,6 +143,18 @@ func (c *Client) Exists(ctx context.Context, keys ...string) (int64, error) {
 	return result.AsInt64()
 }
 
+// Incr increments a key and returns the updated value.
+func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
+	cmd := c.client.B().Incr().Key(key).Build()
+	result := c.client.Do(ctx, cmd)
+
+	if result.Error() != nil {
+		return 0, result.Error()
+	}
+
+	return result.AsInt64()
+}
+
 // Keys returns all keys matching a pattern.
 // WARNING: O(N) scan of the entire keyspace. Prefer Scan() in production.
 func (c *Client) Keys(ctx context.Context, pattern string) ([]string, error) {

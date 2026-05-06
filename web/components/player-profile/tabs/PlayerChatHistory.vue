@@ -36,17 +36,6 @@ async function fetchChat() {
   loading.value = true;
   error.value = null;
 
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
-
-  if (!token) {
-    error.value = "Authentication required";
-    loading.value = false;
-    return;
-  }
-
   try {
     const params = new URLSearchParams({
       page: page.value.toString(),
@@ -63,9 +52,7 @@ async function fetchChat() {
     const response = await fetch(
       `${runtimeConfig.public.backendApi}/players/${props.playerId}/chat?${params}`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       }
     );
 

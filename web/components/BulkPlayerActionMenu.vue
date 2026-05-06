@@ -66,21 +66,12 @@ const rulesFetched = ref(false);
 // Fetch server rules
 async function fetchServerRules() {
     const runtimeConfig = useRuntimeConfig();
-    const cookieToken = useCookie(
-        runtimeConfig.public.sessionCookieName as string,
-    );
-    const token = cookieToken.value;
-
-    if (!token) return;
 
     try {
-        const { data, error: fetchError } = await useFetch(
+        const { data, error: fetchError } = await useAuthFetch(
             `${runtimeConfig.public.backendApi}/servers/${props.serverId}/rules`,
             {
                 method: "GET",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
             },
         );
 
@@ -190,21 +181,6 @@ async function executeBulkAction() {
 
     isActionLoading.value = true;
     const runtimeConfig = useRuntimeConfig();
-    const cookieToken = useCookie(
-        runtimeConfig.public.sessionCookieName as string,
-    );
-    const token = cookieToken.value;
-
-    if (!token) {
-        toast({
-            title: "Authentication Error",
-            description: "You must be logged in to perform this action",
-            variant: "destructive",
-        });
-        isActionLoading.value = false;
-        closeActionDialog();
-        return;
-    }
 
     try {
         let successCount = 0;
@@ -271,10 +247,9 @@ async function executeBulkAction() {
                         break;
                 }
 
-                const { error: fetchError } = await useFetch(endpoint, {
+                const { error: fetchError } = await useAuthFetch(endpoint, {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify(payload),

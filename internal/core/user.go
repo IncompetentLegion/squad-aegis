@@ -51,6 +51,10 @@ func RegisterUser(ctx context.Context, database db.Executor, user *models.User) 
 		return nil, err
 	}
 
+	if err := ValidatePasswordPolicy(user.Password); err != nil {
+		return nil, err
+	}
+
 	if _, err := GetUserByUsername(ctx, database, user.Username, nil); err == nil {
 		return nil, ErrUserAlreadyExists
 	}

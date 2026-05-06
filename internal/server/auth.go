@@ -1,16 +1,35 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/leighmacdonald/steamid/v3/steamid"
+	"github.com/rs/zerolog/log"
 	"go.codycody31.dev/squad-aegis/internal/core"
 	"go.codycody31.dev/squad-aegis/internal/models"
 	"go.codycody31.dev/squad-aegis/internal/permissions"
 	"go.codycody31.dev/squad-aegis/internal/server/responses"
+	"go.codycody31.dev/squad-aegis/internal/shared/config"
+)
+
+const (
+	sessionCookieName        = "session"
+	loginRateLimitWindow     = 10 * time.Minute
+	loginRateLimitUserIPMax  = 5
+	loginRateLimitIPMax      = 20
+	loginRateLimitUserMax    = 10
+	loginRateLimitKeyPrefix  = "login_failures"
+	genericLoginFailureError = "Invalid username or password"
 )
 
 type AuthLoginRequest struct {
@@ -36,40 +55,47 @@ func (s *Server) AuthLogin(c *gin.Context) {
 		return
 	}
 
-	tx, err := s.Dependencies.DB.BeginTx(c.Copy(), nil)
+	loginIP := requestClientIP(c)
+	if s.isLoginRateLimited(c, req.Username, loginIP) {
+		responses.TooManyRequests(c, "Too many failed login attempts. Please try again later.", nil)
+		return
+	}
+
+	tx, err := s.Dependencies.DB.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		responses.InternalServerError(c, err, nil)
 		return
 	}
+	defer tx.Rollback()
 
-	user, err := core.AuthenticateUser(c.Copy(), tx, req.Username, req.Password)
+	user, err := core.AuthenticateUser(c.Request.Context(), tx, req.Username, req.Password)
 	if err != nil {
-		responses.InternalServerError(c, err, nil)
-		return
-	}
-
-	session, err := core.CreateSession(c.Copy(), tx, user.Id, c.ClientIP(), time.Hour*24)
-	if err != nil {
-		fmt.Println(err)
-		err := tx.Rollback()
-		if err != nil {
-			responses.InternalServerError(c, fmt.Errorf("failed to rollback transaction: %w", err), nil)
+		if errors.Is(err, core.ErrorUserNotFound) || errors.Is(err, core.ErrorInvalidPassword) {
+			s.recordFailedLogin(c, req.Username, loginIP)
+			responses.Unauthorized(c, genericLoginFailureError, nil)
 			return
 		}
+
 		responses.InternalServerError(c, err, nil)
 		return
 	}
 
-	err = tx.Commit()
+	session, err := core.CreateSession(c.Request.Context(), tx, user.Id, loginIP, time.Hour*24)
 	if err != nil {
-		fmt.Println(err)
 		responses.InternalServerError(c, err, nil)
 		return
 	}
+
+	if err := tx.Commit(); err != nil {
+		responses.InternalServerError(c, err, nil)
+		return
+	}
+
+	s.resetLoginRateLimit(c, req.Username, loginIP)
+	setSessionCookie(c, session)
 
 	responses.Success(c, "User logged in successfully", &gin.H{
 		"session": gin.H{
-			"token":      session.Token,
 			"expires_at": session.ExpiresAt,
 		},
 	})
@@ -101,6 +127,7 @@ func (s *Server) AuthLogout(c *gin.Context) {
 		return
 	}
 
+	clearSessionCookie(c)
 	responses.SimpleSuccess(c, "User logged out")
 }
 
@@ -227,12 +254,140 @@ func (s *Server) UpdateUserPassword(c *gin.Context) {
 		return
 	}
 
+	if err := core.DeleteSessionsByUserIdExcept(c.Copy(), tx, session.UserId, session.Id); err != nil {
+		responses.InternalServerError(c, err, nil)
+		return
+	}
+
 	if err := tx.Commit(); err != nil {
 		responses.InternalServerError(c, err, nil)
 		return
 	}
 
 	responses.SimpleSuccess(c, "Password updated successfully")
+}
+
+func setSessionCookie(c *gin.Context, session *models.Session) {
+	maxAge := int((24 * time.Hour).Seconds())
+	if session.ExpiresAt.Valid {
+		maxAge = int(time.Until(session.ExpiresAt.Time).Seconds())
+		if maxAge < 0 {
+			maxAge = 0
+		}
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(sessionCookieName, session.Token, maxAge, "/", "", isSecureRequest(c), true)
+}
+
+func clearSessionCookie(c *gin.Context) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(sessionCookieName, "", -1, "/", "", isSecureRequest(c), true)
+}
+
+func isSecureRequest(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+
+	forwardedProto := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	return strings.Contains(forwardedProto, "https") || !config.Config.App.IsDevelopment
+}
+
+func requestClientIP(c *gin.Context) string {
+	cfIP := strings.TrimSpace(c.GetHeader("CF-Connecting-IP"))
+	if net.ParseIP(cfIP) != nil {
+		return cfIP
+	}
+
+	return c.ClientIP()
+}
+
+func (s *Server) isLoginRateLimited(c *gin.Context, username string, ip string) bool {
+	if s.Dependencies.Valkey == nil {
+		return false
+	}
+
+	for _, limit := range loginRateLimitKeys(username, ip) {
+		count, err := s.loginRateLimitCount(c, limit.key)
+		if err != nil {
+			log.Warn().Err(err).Str("key", limit.key).Msg("Failed to read login rate limit")
+			continue
+		}
+		if count >= limit.max {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *Server) recordFailedLogin(c *gin.Context, username string, ip string) {
+	if s.Dependencies.Valkey == nil {
+		return
+	}
+
+	for _, limit := range loginRateLimitKeys(username, ip) {
+		count, err := s.Dependencies.Valkey.Incr(c.Request.Context(), limit.key)
+		if err != nil {
+			log.Warn().Err(err).Str("key", limit.key).Msg("Failed to increment login rate limit")
+			continue
+		}
+		if count == 1 {
+			if err := s.Dependencies.Valkey.Expire(c.Request.Context(), limit.key, loginRateLimitWindow); err != nil {
+				log.Warn().Err(err).Str("key", limit.key).Msg("Failed to expire login rate limit")
+			}
+		}
+	}
+}
+
+func (s *Server) resetLoginRateLimit(c *gin.Context, username string, ip string) {
+	if s.Dependencies.Valkey == nil {
+		return
+	}
+
+	var keys []string
+	for _, limit := range loginRateLimitKeys(username, ip) {
+		keys = append(keys, limit.key)
+	}
+	if err := s.Dependencies.Valkey.Del(c.Request.Context(), keys...); err != nil {
+		log.Warn().Err(err).Msg("Failed to reset login rate limit")
+	}
+}
+
+func (s *Server) loginRateLimitCount(c *gin.Context, key string) (int64, error) {
+	value, err := s.Dependencies.Valkey.Get(c.Request.Context(), key)
+	if err != nil {
+		return 0, nil
+	}
+
+	count, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+type loginRateLimit struct {
+	key string
+	max int64
+}
+
+func loginRateLimitKeys(username string, ip string) []loginRateLimit {
+	username = strings.ToLower(strings.TrimSpace(username))
+	ip = strings.TrimSpace(ip)
+
+	return []loginRateLimit{
+		{key: loginRateLimitKey("user_ip", username+"|"+ip), max: loginRateLimitUserIPMax},
+		{key: loginRateLimitKey("ip", ip), max: loginRateLimitIPMax},
+		{key: loginRateLimitKey("user", username), max: loginRateLimitUserMax},
+	}
+}
+
+func loginRateLimitKey(scope string, value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return loginRateLimitKeyPrefix + ":" + scope + ":" + hex.EncodeToString(sum[:])
 }
 
 // GetUserServerPermissions retrieves the permissions a user has for a specific server

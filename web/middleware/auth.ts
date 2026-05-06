@@ -1,12 +1,6 @@
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   try {
     if (to.path === "/login") return;
-
-    const runtimeConfig = useRuntimeConfig();
-    const cookieToken = useCookie(
-      runtimeConfig.public.sessionCookieName as string
-    );
-    const token = cookieToken.value;
 
     const redirectToLogin = () => {
       const redirectPath = to.fullPath;
@@ -17,7 +11,11 @@ export default defineNuxtRouteMiddleware((to) => {
       });
     };
 
-    if (!token) return redirectToLogin();
+    const authStore = useAuthStore();
+    if (authStore.isLoggedIn) return;
+
+    const authenticated = await authStore.fetch();
+    if (!authenticated) return redirectToLogin();
   } catch (e) {
     return navigateTo({ path: "/login" });
   }

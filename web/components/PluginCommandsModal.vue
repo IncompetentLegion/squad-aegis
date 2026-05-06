@@ -85,8 +85,6 @@ const emit = defineEmits<{
     (e: "update:open", value: boolean): void;
 }>();
 
-const authStore = useAuthStore();
-
 // State
 const loading = ref(false);
 const commands = ref<Command[]>([]);
@@ -116,13 +114,8 @@ const categorizedCommands = computed(() => {
 const loadCommands = async () => {
     loading.value = true;
     try {
-        const response = await $fetch(
+        const response = await useAuthFetchImperative(
             `/api/servers/${props.serverId}/plugins/${props.pluginId}/commands`,
-            {
-                headers: {
-                    Authorization: `Bearer ${authStore.token}`,
-                },
-            },
         );
         commands.value = (response as any).data.commands || [];
     } catch (error: any) {
@@ -176,13 +169,10 @@ const executeCommand = async () => {
     executionStatus.value = null;
     
     try {
-        const response = await $fetch(
+        const response = await useAuthFetchImperative(
             `/api/servers/${props.serverId}/plugins/${props.pluginId}/commands/${selectedCommand.value.id}/execute`,
             {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${authStore.token}`,
-                },
                 body: {
                     params: commandParams.value,
                 },
@@ -231,13 +221,8 @@ const startPollingStatus = (executionId: string) => {
 
 const pollCommandStatus = async (executionId: string) => {
     try {
-        const response = await $fetch(
+        const response = await useAuthFetchImperative(
             `/api/servers/${props.serverId}/plugins/${props.pluginId}/commands/executions/${executionId}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${authStore.token}`,
-                },
-            },
         );
         
         const status = (response as any).data.status as CommandExecutionStatus;
@@ -645,4 +630,3 @@ onMounted(() => {
         </DialogContent>
     </Dialog>
 </template>
-

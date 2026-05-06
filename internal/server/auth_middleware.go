@@ -2,8 +2,10 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.codycody31.dev/squad-aegis/internal/core"
 	"go.codycody31.dev/squad-aegis/internal/models"
 	"go.codycody31.dev/squad-aegis/internal/server/responses"
 )
@@ -20,35 +22,24 @@ func (s *Server) OptionalAuthSession(c *gin.Context) {
 
 // authSession checks if the user is authenticated and updates the session's last seen time and IP address
 func (s *Server) authSession(c *gin.Context, required bool) {
-	sessionToken := c.GetHeader("Authorization") // Check for Authorization header first
+	sessionToken := getSessionToken(c)
 	session := &models.Session{}
 
-	// if text begins with "Bearer ", remove it
-	if len(sessionToken) > 7 && sessionToken[:7] == "Bearer " {
-		sessionToken = sessionToken[7:]
-	}
-
-	// If no Authorization header, check for token in query parameter (for SSE/WebSocket connections)
 	if sessionToken == "" {
-		sessionToken = c.Query("token")
-	}
-
-	// If still no token, check for cookies (try multiple cookie names)
-	if sessionToken == "" {
-		cookieNames := []string{"session", "squad_aegis_session", "session_token"}
-		for _, cookieName := range cookieNames {
-			cookie, err := c.Cookie(cookieName)
-			if err == nil && cookie != "" {
-				sessionToken = cookie
-				break
-			}
+		if required {
+			responses.Unauthorized(c, "Unauthorized", nil)
+			return
 		}
+
+		c.Next()
+		return
 	}
 
 	dests := []any{&session.Id, &session.UserId, &session.Token, &session.CreatedAt, &session.ExpiresAt, &session.LastSeen, &session.LastSeenIp}
 
 	// Check if the session token provided is valid
-	row := s.Dependencies.DB.QueryRow("SELECT * FROM sessions WHERE token = $1 AND (expires_at IS NULL OR expires_at > NOW())", sessionToken)
+	tokenHash := core.HashSessionToken(sessionToken)
+	row := s.Dependencies.DB.QueryRow("SELECT * FROM sessions WHERE token = $1 AND (expires_at IS NULL OR expires_at > NOW())", tokenHash)
 	if err := row.Scan(dests...); err != nil {
 		if required {
 			responses.Unauthorized(c, "Unauthorized", nil)
@@ -67,6 +58,38 @@ func (s *Server) authSession(c *gin.Context, required bool) {
 	}
 
 	c.Set("session", session)
+}
+
+func getSessionToken(c *gin.Context) string {
+	authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		token := cleanSessionToken(strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")))
+		if token != "" {
+			return token
+		}
+	}
+
+	cookieNames := []string{"session", "squad_aegis_session", "session_token"}
+	for _, cookieName := range cookieNames {
+		cookie, err := c.Cookie(cookieName)
+		if err == nil {
+			if token := cleanSessionToken(cookie); token != "" {
+				return token
+			}
+		}
+	}
+
+	return ""
+}
+
+func cleanSessionToken(token string) string {
+	token = strings.TrimSpace(token)
+	switch strings.ToLower(token) {
+	case "", "undefined", "null":
+		return ""
+	default:
+		return token
+	}
 }
 
 // AuthIsSuperAdmin checks if the user is a super admin, if not it returns a 403 Forbidden response

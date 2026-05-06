@@ -8,10 +8,9 @@ useHead({
   },
 });
 
-const runtimeConfig = useRuntimeConfig();
 const authStore = useAuthStore();
 
-if (useCookie(runtimeConfig.public.sessionCookieName as string).value) {
+if (!authStore.isLoggedIn) {
   await authStore.fetch();
 }
 </script>

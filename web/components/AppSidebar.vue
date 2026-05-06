@@ -125,15 +125,8 @@ const fetchServers = async () => {
     };
   }
 
-  const response = await useFetch<ServerResponse>(
+  const response = await useAuthFetch<ServerResponse>(
     `${runtimeConfig.public.backendApi}/servers`,
-    {
-      headers: {
-        Authorization: `Bearer ${
-          useCookie(runtimeConfig.public.sessionCookieName).value
-        }`,
-      },
-    }
   );
 
   if (response.error.value) {
@@ -150,9 +143,16 @@ const fetchServers = async () => {
   }
 };
 
-const logout = () => {
+const logout = async () => {
+  try {
+    await useAuthFetchImperative(`${runtimeConfig.public.backendApi}/auth/logout`, {
+      method: "POST",
+    });
+  } catch (error) {
+    console.error("Error logging out:", error);
+  }
+
   useAuthStore().logout();
-  document.cookie = `${runtimeConfig.public.sessionCookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
   navigateTo("/login");
 };
 

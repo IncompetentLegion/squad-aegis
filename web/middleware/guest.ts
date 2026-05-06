@@ -1,11 +1,7 @@
-export default defineNuxtRouteMiddleware(() => {
-  const runtimeConfig = useRuntimeConfig();
-  const cookieToken = useCookie(
-    runtimeConfig.public.sessionCookieName as string
-  );
-  const token = cookieToken.value;
+export default defineNuxtRouteMiddleware(async () => {
+  const authStore = useAuthStore();
 
-  if (token) {
+  if (authStore.isLoggedIn || await authStore.fetch()) {
     return navigateTo("/dashboard");
   }
 });
