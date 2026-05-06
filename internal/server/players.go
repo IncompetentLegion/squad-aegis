@@ -1495,77 +1495,77 @@ func (s *Server) getPlayerFromRawEvents(ctx context.Context, playerID string, is
 		),
 		all_player_events AS (
 			-- Join succeeded events (primary source for identity)
-			SELECT steam, eos, epic, player_suffix as name, event_time
+			SELECT steam, eos, epic, player_suffix as name, event_time, 'joined' as event_kind
 			FROM squad_aegis.server_join_succeeded_events
 			WHERE (steam != '' AND steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (eos != '' AND eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			   OR (epic != '' AND epic IN (SELECT arrayJoin(epic_ids) FROM linked_identifiers WHERE length(epic_ids) > 0))
 			UNION ALL
 			-- Connected events
-			SELECT steam, eos, epic, '' as name, event_time
+			SELECT steam, eos, epic, '' as name, event_time, 'connected' as event_kind
 			FROM squad_aegis.server_player_connected_events
 			WHERE (steam != '' AND steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (eos != '' AND eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			   OR (epic != '' AND epic IN (SELECT arrayJoin(epic_ids) FROM linked_identifiers WHERE length(epic_ids) > 0))
 			UNION ALL
 			-- Disconnected events
-			SELECT steam, eos, epic, player_suffix as name, event_time
+			SELECT steam, eos, epic, player_suffix as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_disconnected_events
 			WHERE (steam != '' AND steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (eos != '' AND eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			   OR (epic != '' AND epic IN (SELECT arrayJoin(epic_ids) FROM linked_identifiers WHERE length(epic_ids) > 0))
 			UNION ALL
 			-- Possess events (different column names)
-			SELECT player_steam as steam, player_eos as eos, player_epic as epic, player_suffix as name, event_time
+			SELECT player_steam as steam, player_eos as eos, player_epic as epic, player_suffix as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_possess_events
 			WHERE (player_steam != '' AND player_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (player_eos != '' AND player_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			   OR (player_epic != '' AND player_epic IN (SELECT arrayJoin(epic_ids) FROM linked_identifiers WHERE length(epic_ids) > 0))
 			UNION ALL
 			-- Damage dealt (as attacker)
-			SELECT attacker_steam as steam, attacker_eos as eos, '' as epic, attacker_name as name, event_time
+			SELECT attacker_steam as steam, attacker_eos as eos, '' as epic, attacker_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_damaged_events
 			WHERE (attacker_steam != '' AND attacker_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (attacker_eos != '' AND attacker_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Damage taken (as victim)
-			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time
+			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_damaged_events
 			WHERE (victim_steam != '' AND victim_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (victim_eos != '' AND victim_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Deaths (as victim)
-			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time
+			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_died_events
 			WHERE (victim_steam != '' AND victim_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (victim_eos != '' AND victim_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Kills (as attacker)
-			SELECT attacker_steam as steam, attacker_eos as eos, '' as epic, attacker_name as name, event_time
+			SELECT attacker_steam as steam, attacker_eos as eos, '' as epic, attacker_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_died_events
 			WHERE (attacker_steam != '' AND attacker_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (attacker_eos != '' AND attacker_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Wounded (as victim)
-			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time
+			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_wounded_events
 			WHERE (victim_steam != '' AND victim_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (victim_eos != '' AND victim_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Wounded someone (as attacker)
-			SELECT attacker_steam as steam, attacker_eos as eos, '' as epic, attacker_name as name, event_time
+			SELECT attacker_steam as steam, attacker_eos as eos, '' as epic, attacker_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_wounded_events
 			WHERE (attacker_steam != '' AND attacker_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (attacker_eos != '' AND attacker_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Revived someone (as reviver)
-			SELECT reviver_steam as steam, reviver_eos as eos, '' as epic, reviver_name as name, event_time
+			SELECT reviver_steam as steam, reviver_eos as eos, '' as epic, reviver_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_revived_events
 			WHERE (reviver_steam != '' AND reviver_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (reviver_eos != '' AND reviver_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
 			UNION ALL
 			-- Got revived (as victim)
-			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time
+			SELECT victim_steam as steam, victim_eos as eos, '' as epic, victim_name as name, event_time, 'activity' as event_kind
 			FROM squad_aegis.server_player_revived_events
 			WHERE (victim_steam != '' AND victim_steam IN (SELECT arrayJoin(steam_ids) FROM linked_identifiers WHERE length(steam_ids) > 0))
 			   OR (victim_eos != '' AND victim_eos IN (SELECT arrayJoin(eos_ids) FROM linked_identifiers WHERE length(eos_ids) > 0))
@@ -1577,7 +1577,7 @@ func (s *Server) getPlayerFromRawEvents(ctx context.Context, playerID string, is
 			anyIf(name, name != '') as player_name,
 			max(event_time) as last_seen,
 			min(event_time) as first_seen,
-			count(DISTINCT toDate(event_time)) as total_sessions
+			countIf(event_kind = 'connected') as total_sessions
 		FROM all_player_events
 		WHERE steam != '' OR eos != '' OR epic != ''
 	`, whereClause, playerWhereClause, attackerWhereClause, victimWhereClause, reviverWhereClause)

@@ -17,7 +17,7 @@ import {
 
 interface DataPoint {
   timestamp: string;
-  value: number;
+  value: number | null;
 }
 
 interface Props {
@@ -48,16 +48,28 @@ const buildChartData = () =>
   props.data.map((point) => ({
     time: toChartTime(point.timestamp),
     value: point.value,
-    performance: getPerformanceStatus(point.value),
+    performance:
+      typeof point.value === "number" ? getPerformanceStatus(point.value) : "No data",
     color:
-      point.value >= 40 ? "#059669" : point.value >= 25 ? "#d97706" : "#dc2626",
+      typeof point.value === "number" && point.value >= 40
+        ? "#059669"
+        : typeof point.value === "number" && point.value >= 25
+          ? "#d97706"
+          : typeof point.value === "number"
+            ? "#dc2626"
+            : "#9ca3af",
   }));
 
 const getChartOptions = (chartData: ReturnType<typeof buildChartData>) => {
   const timestamps = props.data.map((point) => point.timestamp);
+  const numericValues = props.data
+    .map((point) => point.value)
+    .filter((value): value is number => typeof value === "number");
 
   const avgTps =
-    props.data.reduce((sum, d) => sum + d.value, 0) / props.data.length;
+    numericValues.length > 0
+      ? numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
+      : 0;
   const lineColor = getLineColor(avgTps);
 
   return {
@@ -188,7 +200,7 @@ const getChartOptions = (chartData: ReturnType<typeof buildChartData>) => {
         },
       },
       min: 0,
-      max: Math.max(65, Math.max(...props.data.map((d) => d.value)) + 5),
+      max: Math.max(65, (numericValues.length > 0 ? Math.max(...numericValues) : 0) + 5),
     },
     tooltip: {
       customContent: (title, items) => {
@@ -196,6 +208,15 @@ const getChartOptions = (chartData: ReturnType<typeof buildChartData>) => {
         const time = items[0].data.time;
         let content = `<div style="padding: 10px;"><strong>${formatChartTooltipTime(time)}</strong></div>`;
         items.forEach((item) => {
+          if (item.value == null) {
+            content += `
+              <div style="padding: 5px 10px; display: flex; justify-content: space-between;">
+                <span style="color: #9ca3af;">TPS:</span>
+                <span>No data</span>
+              </div>
+            `;
+            return;
+          }
           const performance = getPerformanceStatus(Number(item.value));
           content += `
             <div style="padding: 5px 10px; display: flex; justify-content: space-between;">
